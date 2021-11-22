@@ -5,6 +5,7 @@
 def joinBytes(bytesList):
     bytesArray = bytearray(''.encode("utf-8"))
     for bytes in bytesList:
+        print(bytes)
         bytesArray.extend(bytes)
     return bytesArray
 #create package
@@ -20,4 +21,11 @@ def breakPacket(packet):
     checksum = packet[10:12]
     data = packet[12:]
 
+    return seqnum,acknum,flags,checksum,data
+
+def convert(seqnum,acknum,flags,checksum,data):
+    seqnum = seqnum.to_bytes(4, 'big')
+    acknum = acknum.to_bytes(4, 'big')
+    print(checksum)
+    checksum = checksum.to_bytes(2, 'big')
     return seqnum,acknum,flags,checksum,data
