@@ -1,4 +1,5 @@
 import socket
+from struct import unpack
 from threading import Thread, Event
 from time import sleep
 from constants import *
@@ -13,16 +14,31 @@ gas = False
 def thread_con(conn,ev):
     gas = ev.wait()
     if gas:
-        data = conn.recv(32768)
-        
-        # twh taro sini keknya
-        a,b,c,d,e = convert(seqnum, acknum, syn, checksum, data)
-        dat = createPacket(a,b,c,d,e)
-        conn.sendall(dat)
+        packet = conn.recv(32780)
+        print("Received",packet)
+        seqnum, acknum, flags, checksum, data = breakPacket(packet)
+        print("First packet from client received")
+        print(seqnum, acknum, flags, checksum, data)
+        # 3wh yey
+        if seqnum == 100 and (flags & FLAG_SYN): # syn-received
+            a,b,c,d,e = convert(300, 101, FLAG_SYN | FLAG_ACK, 0, "")
+            dat = createPacket(a,b,c,d,e)
+            conn.sendall(dat)
+            print("M3 sent")
+        packet = conn.recv(32780)
+        print("Received",packet)
+        seqnum, acknum, flags, checksum, data = breakPacket(packet)
+        if seqnum == 101 and acknum == 301 and (flags & FLAG_ACK):
+            # kirim data beneran
+            a,b,c,d,e = convert(1234, 301, FLAG_DAT, 0, "message")
+            dat = createPacket(a,b,c,d,e)
+            conn.sendall(dat)
+            print("Data sent");
     conn.close()
 
 
 if __name__ == '__main__':
+    print("Server started")
     s.bind((HOST, PORT))
     ev = Event()
     yes = True
