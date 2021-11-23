@@ -13,10 +13,10 @@ gas = False
 def thread_con(conn,ev):
     gas = ev.wait()
     if gas:
-        data = conn.recv(32778)
+        data = conn.recv(32768)
         
         # twh taro sini keknya
-        a,b,c,d,e = convert(seqnum, acknum, syn, checksum,data)
+        a,b,c,d,e = convert(seqnum, acknum, syn, checksum, data)
         dat = createPacket(a,b,c,d,e)
         conn.sendall(dat)
     conn.close()
@@ -37,3 +37,4 @@ if __name__ == '__main__':
             yes = False
             ev.set()
             print("Transfer time")
+

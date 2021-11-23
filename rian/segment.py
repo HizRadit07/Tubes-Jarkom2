@@ -29,3 +29,4 @@ def convert(seqnum,acknum,flags,checksum,data):
     print(checksum)
     checksum = checksum.to_bytes(2, 'big')
     return seqnum,acknum,flags,checksum,data
+

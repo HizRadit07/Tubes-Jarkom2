@@ -11,3 +11,4 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.sendall(ipt.encode())
     data = s.recv(32778)
     print(data)
+
