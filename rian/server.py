@@ -31,22 +31,14 @@ def thread_con(conn,ev):
         print("M2 sent")
         
         # 3wh: established -- established
-        segment = conn.recv(12)
-        if calcChecksum(segment) != 0:
-            print("Checksum error!", calcChecksum(segment))
-        else:
-            print("Checksum correct")
-        print("Received segment ", end='')
-        printSegment(segment)
+        segment = recvSegment(conn, 12, True)
         seqnum, acknum, flags, checksum, data = breakSegment(segment)
         if seqnum == 300 and acknum == 101 and (flags & FLAG_SYN) and (flags & FLAG_ACK):
             dat = makeSegment(101, 301, FLAG_ACK, "")
             conn.sendall(dat)
-            print("M4 sent, press Enter to send data")
-            #input()
+            print("M4 sent")
             # kirim data beneran
             dat = makeSegment(101, 301, FLAG_ACK, "-=message=-")
-            #dat = makeSegment(101, 301, FLAG_ACK, "-==-")
             conn.sendall(dat)
             print("Data sent")
     conn.close()

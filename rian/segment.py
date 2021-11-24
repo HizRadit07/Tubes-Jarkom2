@@ -11,6 +11,19 @@ def joinBytes(bytesList):
     print(bytesArray)
     return bytesArray
 
+def recvSegment(conn, nbytes, verbose):
+    segment = conn.recv(nbytes)
+    if calcChecksum(segment) != 0:
+        print("Checksum error!", calcChecksum(segment))
+    elif verbose:
+        print("Checksum correct")
+    
+    if verbose:
+        print("Received segment: ", end='')
+        printSegment(segment)
+    
+    return segment
+
 def printSegmentRaw(segment):
     print("Printing raw segment")
     print(segment)
@@ -23,7 +36,6 @@ def printSegmentRaw(segment):
     return
 
 def printSegment(segment):
-    printSegmentRaw(segment)
     a,b,c,d,e = breakSegment(segment)
     print("seqnum =", a, "acknum =", b, "flags =", c, "checksum =", d, "data :", e)
     return

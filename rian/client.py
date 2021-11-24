@@ -13,41 +13,23 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
     
     # 3wh: established -- syn-received
-    segment = s.recv(12)
-    if calcChecksum(segment) != 0:
-        print("Checksum error!", calcChecksum(segment))
-    else:
-        print("Checksum correct")
-    print("Received segment ", end='')
-    printSegment(segment)
+    segment = recvSegment(s, 12, True)
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
     if seqnum == 100 and (flags & FLAG_SYN):
         dat = makeSegment(300, 101, FLAG_SYN | FLAG_ACK, "")
         s.sendall(dat)
         print("M3 sent")
     
-    # 3wh: established-established (menerima data)
-    segment = s.recv(12)
-    if calcChecksum(segment) != 0:
-        print("Checksum error!", calcChecksum(segment))
-    else:
-        print("Checksum correct")
-    print("Received segment ", end='')
-    printSegment(segment)
+    # 3wh: established-established
+    segment = recvSegment(s, 12, True)
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
     if seqnum == 101 and acknum == 301 and (flags & FLAG_ACK):
-        segment = s.recv(32780)
-        if calcChecksum(segment) != 0:
-            print("Checksum error!", calcChecksum(segment))
-        else:
-            print("Checksum correct")
-        print("Received segment ", end='')
-        printSegment(segment)
+        # menerima data "sesungguhnya"
+        segment = recvSegment(s, 32780, True)
         seqnum, acknum, flags, checksum, data = breakSegment(segment)
         print("Message from server:")
         print(data)
-        print("Entire segment (raw):")
+        print("Entire segment (raw; components):")
         printSegmentRaw(segment)
-        print("Entire segment:")
         printSegment(segment)
 
