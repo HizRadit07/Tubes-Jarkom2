@@ -14,22 +14,22 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     
     # 3wh: established -- syn-received
     segment = s.recv(32780)
-    print("Received segment", end='')
+    print("Received segment ", end='')
     printSegment(segment)
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
     if seqnum == 100 and (flags & FLAG_SYN):
-        dat = makeSegment(300, 101, FLAG_SYN | FLAG_ACK, 0, "")
+        dat = makeSegment(300, 101, FLAG_SYN | FLAG_ACK, "")
         s.sendall(dat)
         print("M3 sent")
     
     # 3wh: established-established (menerima data)
     segment = s.recv(32780)
-    print("Received segment", end='')
+    print("Received segment ", end='')
     printSegment(segment)
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
     if seqnum == 101 and acknum == 301 and (flags & FLAG_ACK):
         segment = s.recv(32780)
-        print("Received segment", end='')
+        print("Received segment ", end='')
         printSegment(segment)
         seqnum, acknum, flags, checksum, data = breakSegment(segment)
         print("Message from server:")

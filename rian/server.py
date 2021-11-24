@@ -25,21 +25,21 @@ def thread_con(conn,ev):
     gas = ev.wait()
     if gas:
         # 3wh: syn-sent -- syn-received
-        dat = makeSegment(100, 0, FLAG_SYN, 0, "")
+        dat = makeSegment(100, 0, FLAG_SYN, "")
         conn.sendall(dat)
         print("M2 sent")
         
         # 3wh: established -- established
         segment = conn.recv(32780)
-        print("Received segment", end='')
+        print("Received segment ", end='')
         printSegment(segment)
         seqnum, acknum, flags, checksum, data = breakSegment(segment)
         if seqnum == 300 and acknum == 101 and (flags & FLAG_SYN) and (flags & FLAG_ACK):
-            dat = makeSegment(101, 301, FLAG_ACK, 0, "")
+            dat = makeSegment(101, 301, FLAG_ACK, "")
             conn.sendall(dat)
             print("M4 sent")
             # kirim data beneran
-            dat = makeSegment(101, 301, FLAG_ACK, 0, "-=message=-")
+            dat = makeSegment(101, 301, FLAG_ACK, "-=message=-")
             conn.sendall(dat)
             print("Data sent")
     conn.close()

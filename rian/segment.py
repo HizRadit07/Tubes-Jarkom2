@@ -27,14 +27,10 @@ def printSegment(segment):
     print("seqnum =", a, "acknum =", b, "flags =", c, "checksum =", d, "data :", e)
     return
 
-def makeSegment(seqnum, acknum, flags, checksum, data):
+def makeSegment(seqnum, acknum, flags, data):
+    checksum = calcChecksum(seqnum, acknum, flags, data)
     a,b,c,d,e = convertToBytes(seqnum,acknum,flags,checksum,data)
     return joinBytes([a,b,c,b'\x00',d,e])
-
-# create segment
-def createSegment(seqnum,acknum,flags,checksum,data):
-    # all args in the form of python byte
-    return joinBytes([seqnum,acknum,flags,b'\x00',checksum,data])
 
 # break a segment into individual components (in int form except for data)
 def breakSegment(segment):
@@ -52,4 +48,20 @@ def convertToBytes(seqnum,acknum,flags,checksum,data):
     checksum = checksum.to_bytes(2, 'big')
     data = data.encode()
     return seqnum,acknum,flags,checksum,data
+
+def calcChecksum(seqnum, acknum, flags, data):
+    a,b,c,d,e = convertToBytes(seqnum,acknum,flags,0,data)
+    bytesArray = joinBytes([a,b,c,b'\x00',d,e])
+    if len(bytesArray) % 2 == 1:
+        bytesArray.extend(b'\x00')
+    hlength = len(bytesArray)//2
+    checksum = 0;
+    for i in range(hlength):
+        # one's complement addition
+        checksum += unpack(">h", bytesArray[2*i:2*i+2])[0]
+        if checksum > 0xffff:
+            checksum -= 0xffff
+            checksum += 1
+    # invert bits
+    return (~checksum) & 0xffff
 
