@@ -1,6 +1,6 @@
 Repository buat tubes 2 jarkom
 
-problems:
-flag tidak seperti byte lainnya
-checksum doesn't appear
-threee way handshake stil not done~
+Kelompok: (urut nim)
+10119035 Abdillah Ahmad
+13519087 Hizkia Raditya Pratama Roosadi
+13519147 Andrianata Putra Tjandra
