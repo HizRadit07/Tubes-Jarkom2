@@ -10,31 +10,44 @@ def joinBytes(bytesList):
         bytesArray.extend(bytes)
     print(bytesArray)
     return bytesArray
-#create package
-def createPacket(seqnum,acknum,flags,checksum,data):
-    #all args in the form of python byte
+
+def printSegmentRaw(segment):
+    print("Printing raw segment")
+    print(segment)
+    print("Segment components:")
+    print(segment[:4])
+    print(segment[4:8])
+    print(segment[8])
+    print(segment[10:12])
+    print(segment[12:])
+    return
+
+def printSegment(segment):
+    a,b,c,d,e = breakSegment(segment)
+    print("seqnum =", a, "acknum =", b, "flags =", c, "checksum =", d, "data :", e)
+    return
+
+def makeSegment(seqnum, acknum, flags, checksum, data):
+    a,b,c,d,e = convertToBytes(seqnum,acknum,flags,checksum,data)
+    return joinBytes([a,b,c,b'\x00',d,e])
+
+# create segment
+def createSegment(seqnum,acknum,flags,checksum,data):
+    # all args in the form of python byte
     return joinBytes([seqnum,acknum,flags,b'\x00',checksum,data])
 
-#break a packet to individual bytes
-def breakPacket(packet):
-    #print("Packet to break:")
-    #print(packet[:4])
-    #print(packet[4:8])
-    #print(packet[8])
-    #print(packet[10:12])
-    #print(packet[12:])
-    seqnum = unpack(">i",packet[:4])[0]
-    acknum = unpack(">i",packet[4:8])[0]
-    flags = packet[8]
-    checksum = unpack(">h",packet[10:12])[0]
-    data = packet[12:]
-
+# break a segment into individual components (in int form except for data)
+def breakSegment(segment):
+    seqnum = unpack(">i",segment[:4])[0]
+    acknum = unpack(">i",segment[4:8])[0]
+    flags = segment[8]
+    checksum = unpack(">h",segment[10:12])[0]
+    data = segment[12:]
     return seqnum,acknum,flags,checksum,data
 
-def convert(seqnum,acknum,flags,checksum,data):
+def convertToBytes(seqnum,acknum,flags,checksum,data):
     seqnum = seqnum.to_bytes(4, 'big')
     acknum = acknum.to_bytes(4, 'big')
-    print(checksum)
     flags = flags.to_bytes(1, 'big')
     checksum = checksum.to_bytes(2, 'big')
     data = data.encode()

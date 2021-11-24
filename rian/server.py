@@ -11,31 +11,37 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 gas = False
 
 
+# TCP A                                                TCP B
+#  1.  CLOSED                                               LISTEN
+#  2.  SYN-SENT    --> <SEQ=100><CTL=SYN>               --> SYN-RECEIVED
+#  3.  ESTABLISHED <-- <SEQ=300><ACK=101><CTL=SYN,ACK>  <-- SYN-RECEIVED
+#  4.  ESTABLISHED --> <SEQ=101><ACK=301><CTL=ACK>       --> ESTABLISHED
+#  5.  ESTABLISHED --> <SEQ=101><ACK=301><CTL=ACK><DATA> --> ESTABLISHED
+#          Basic 3-Way Handshake for Connection Synchronization
+
+
 def thread_con(conn,ev):
     gas = ev.wait()
     if gas:
-        packet = conn.recv(32780)
-        print("Received",packet)
-        seqnum, acknum, flags, checksum, data = breakPacket(packet)
-        print("First packet from client received")
-        print(seqnum, acknum, flags, checksum, data)
-        # 3wh yey
-        if seqnum == 100 and (flags & FLAG_SYN): # syn-received
-            a,b,c,d,e = convert(300, 101, FLAG_SYN | FLAG_ACK, 0, "")
-            dat = createPacket(a,b,c,d,e)
+        # 3wh: syn-sent -- syn-received
+        dat = makeSegment(100, 0, FLAG_SYN, 0, "")
+        conn.sendall(dat)
+        print("M2 sent")
+        
+        # 3wh: established -- established
+        segment = conn.recv(32780)
+        print("Received segment", end='')
+        printSegment(segment)
+        seqnum, acknum, flags, checksum, data = breakSegment(segment)
+        if seqnum == 300 and acknum == 101 and (flags & FLAG_SYN) and (flags & FLAG_ACK):
+            dat = makeSegment(101, 301, FLAG_ACK, 0, "")
             conn.sendall(dat)
-            print("M3 sent")
-        packet = conn.recv(32780)
-        print("Received",packet)
-        seqnum, acknum, flags, checksum, data = breakPacket(packet)
-        if seqnum == 101 and acknum == 301 and (flags & FLAG_ACK):
+            print("M4 sent")
             # kirim data beneran
-            a,b,c,d,e = convert(1234, 301, FLAG_DAT, 0, "message")
-            dat = createPacket(a,b,c,d,e)
+            dat = makeSegment(101, 301, FLAG_ACK, 0, "-=message=-")
             conn.sendall(dat)
-            print("Data sent");
+            print("Data sent")
     conn.close()
-
 
 if __name__ == '__main__':
     print("Server started")
