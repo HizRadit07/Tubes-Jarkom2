@@ -8,28 +8,31 @@ PORT = 65432        # The port used by the server
 #ipt = sys.argv[1]
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
-    print("Press Enter to transmit to server")
-    dummy = input()
-    # 3wh: closed -> syn-sent
-    a,b,c,d,e = convert(100, 0, FLAG_SYN, 0, "")
-    dat = createPacket(a,b,c,d,e)
-    s.sendall(dat)
-    print("M2 sent")
-    # 3wh: syn-sent -> established
-    packet = s.recv(32780)
-    print("Received",packet)
-    seqnum, acknum, flags, checksum, data = breakPacket(packet)
-    if seqnum == 300 and acknum == 101 and (flags & FLAG_SYN) and (flags & FLAG_ACK):
-        a,b,c,d,e = convert(101, 301, FLAG_ACK, 0, "")
-        dat = createPacket(a,b,c,d,e)
-        s.sendall(dat)
-        print("M4 sent")
     
-    packet = s.recv(32780)
-    print("Received",packet)
-    seqnum, acknum, flags, checksum, data = breakPacket(packet)
-    print("Message from server:")
-    print(data)
-    print("Entire packet:")
-    print(packet)
+    # 3wh: established -- syn-received
+    segment = s.recv(32780)
+    print("Received segment", end='')
+    printSegment(segment)
+    seqnum, acknum, flags, checksum, data = breakSegment(segment)
+    if seqnum == 100 and (flags & FLAG_SYN):
+        dat = makeSegment(300, 101, FLAG_SYN | FLAG_ACK, 0, "")
+        s.sendall(dat)
+        print("M3 sent")
+    
+    # 3wh: established-established (menerima data)
+    segment = s.recv(32780)
+    print("Received segment", end='')
+    printSegment(segment)
+    seqnum, acknum, flags, checksum, data = breakSegment(segment)
+    if seqnum == 101 and acknum == 301 and (flags & FLAG_ACK):
+        segment = s.recv(32780)
+        print("Received segment", end='')
+        printSegment(segment)
+        seqnum, acknum, flags, checksum, data = breakSegment(segment)
+        print("Message from server:")
+        print(data)
+        print("Entire segment (raw):")
+        printSegmentRaw(segment)
+        print("Entire segment:")
+        printSegment(segment)
 
