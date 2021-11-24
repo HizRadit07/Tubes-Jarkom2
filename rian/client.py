@@ -4,8 +4,8 @@ from constants import *
 from segment import *
 
 HOST = '127.0.0.1'  # The server's hostname or IP address
-PORT = 65432        # The port used by the server
-#PORT = sys.argv[1]  # The port used by the server
+#PORT = 65432        # The port used by the server
+PORT = int(sys.argv[1])  # The port used by the server
 #SAVE_PATH = sys.argv[2]
 #ipt = sys.argv[1]
 
@@ -13,7 +13,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
     
     # 3wh: established -- syn-received
-    segment = s.recv(32780)
+    segment = s.recv(12)
+    if calcChecksum(segment) != 0:
+        print("Checksum error!", calcChecksum(segment))
+    else:
+        print("Checksum correct")
     print("Received segment ", end='')
     printSegment(segment)
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
@@ -23,12 +27,20 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         print("M3 sent")
     
     # 3wh: established-established (menerima data)
-    segment = s.recv(32780)
+    segment = s.recv(12)
+    if calcChecksum(segment) != 0:
+        print("Checksum error!", calcChecksum(segment))
+    else:
+        print("Checksum correct")
     print("Received segment ", end='')
     printSegment(segment)
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
     if seqnum == 101 and acknum == 301 and (flags & FLAG_ACK):
         segment = s.recv(32780)
+        if calcChecksum(segment) != 0:
+            print("Checksum error!", calcChecksum(segment))
+        else:
+            print("Checksum correct")
         print("Received segment ", end='')
         printSegment(segment)
         seqnum, acknum, flags, checksum, data = breakSegment(segment)

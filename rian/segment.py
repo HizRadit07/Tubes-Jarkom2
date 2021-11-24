@@ -23,13 +23,16 @@ def printSegmentRaw(segment):
     return
 
 def printSegment(segment):
+    printSegmentRaw(segment)
     a,b,c,d,e = breakSegment(segment)
     print("seqnum =", a, "acknum =", b, "flags =", c, "checksum =", d, "data :", e)
     return
 
 def makeSegment(seqnum, acknum, flags, data):
-    checksum = calcChecksum(seqnum, acknum, flags, data)
-    a,b,c,d,e = convertToBytes(seqnum,acknum,flags,checksum,data)
+    a,b,c,d,e = convertToBytes(seqnum,acknum,flags,0,data)
+    bytesArray = joinBytes([a,b,c,b'\x00',d,e])
+    checksum = (~calcChecksum(bytesArray)) & 0xffff
+    d = checksum.to_bytes(2, 'big')
     return joinBytes([a,b,c,b'\x00',d,e])
 
 # break a segment into individual components (in int form except for data)
@@ -49,19 +52,29 @@ def convertToBytes(seqnum,acknum,flags,checksum,data):
     data = data.encode()
     return seqnum,acknum,flags,checksum,data
 
-def calcChecksum(seqnum, acknum, flags, data):
-    a,b,c,d,e = convertToBytes(seqnum,acknum,flags,0,data)
-    bytesArray = joinBytes([a,b,c,b'\x00',d,e])
-    if len(bytesArray) % 2 == 1:
-        bytesArray.extend(b'\x00')
+def calcChecksum(bytesArray):
     hlength = len(bytesArray)//2
+    odd = (len(bytesArray)%2 == 1)
     checksum = 0;
     for i in range(hlength):
         # one's complement addition
         checksum += unpack(">h", bytesArray[2*i:2*i+2])[0]
+        if checksum < 0:
+            checksum += 0x10000
         if checksum > 0xffff:
             checksum -= 0xffff
             checksum += 1
-    # invert bits
-    return (~checksum) & 0xffff
+        #print("checksum calc:", hex(checksum))
+    if odd:
+        checksum += bytesArray[2*hlength] << 8
+        if checksum < 0:
+            checksum += 0x10000
+        if checksum > 0xffff:
+            checksum -= 0xffff
+            checksum += 1
+    #print("checksum calc final:", hex(checksum))
+    checksum = checksum & 0xffff
+    if checksum == 0xffff:
+        checksum = 0
+    return checksum
 
