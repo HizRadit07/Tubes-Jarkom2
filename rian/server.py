@@ -26,6 +26,9 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 
 def thread_con(conn,ev,ev2):
+    global Sb
+    global Sm
+    global segments_needed
     gas = ev.wait()
     if gas:
         # 3wh: syn-sent -- syn-received
@@ -42,23 +45,60 @@ def thread_con(conn,ev,ev2):
             print("M4 sent")
             
             # kirim data beneran
-            f = open("test_short.txt", "r")
+            f = open("test_pg41506.txt", "r")
             length = f.seek(2)
             f.seek(0)
-            segments_needed = length // 32768
+            segments_needed = (length-1) // 32768 + 1
+            Sb = ISS
+            Sn = ISS+N-1
+            file_parts = [f.read(32768) for i in range(N)]
+            segments_in_wnd = [makeSegment(ISS+1+i, IRS+1+i, FLAG_DAT, file_parts[i]) for i in range(N)]
+            fp_base_idx = 0
+            fp_last_sb = 0
             ev2.set()
-            #while (Sb < segments_needed):
-            #    Sb = Sb
-            file_data = f.read()
-            dat = makeSegment(ISS+1, IRS+1, FLAG_ACK, file_data)
-            conn.sendall(dat)
+            
+            while (Sb < segments_needed):
+                Sbl = Sb         # Sb dan Sm untuk loop (antisipasi jika
+                Sml = Sbl + N-1  # paket datang di tengah-tengah loop)
+                if Sml >= segments_needed:
+                    Sml = segments_needed - 1  # di akhir file
+                fp_base_idx_old = fp_base_idx
+                fp_base_idx = Sbl % N
+                
+                # update file_parts dan segments_in_wnd jika perlu
+                while fp_base_idx_old != fp_base_idx:
+                    fp_last_sb += 1
+                    file_parts[fp_base_idx_old] = f.read(32768)
+                    segments_in_wnd[fp_base_idx_old] = makeSegment(fp_last_sb, IRS-ISS+fp_last_sb, FLAG_DAT, file_parts[fp_base_idx_old])
+                    fp_base_idx_old += 1
+                    if (fp_base_idx_old == N):
+                        fp_base_idx_old = 0
+                
+                # kirim segmen
+                for i in range(Sbl, Sml+1):
+                    idx_siw = i - Sbl + fp_base_idx
+                    if idx_siw >= N
+                        idx_siw -= N
+                    conn.sendall(segments_in_wnd[idx_siw])
+                    print("Sent segment no.", i)
+            
+            #file_data = f.read()
+            #dat = makeSegment(ISS+1, IRS+1, FLAG_ACK, file_data)
+            #conn.sendall(dat)
             print("Data sent")
     conn.close()
 
 def ack_receive(conn,ev):
     gas2 = ev2.wait()
     if gas2:
-        conn = conn
+        while Sb < segments_needed:
+            segment = recvSegment(conn, 12, True)
+            seqnum, acknum, flags, checksum, data = breakSegment(segment)
+            print("Received segment: ", end='')
+            printSegment(segment)
+            if flags & FLAG_ACK:
+                if seqnum >= Sb: # acceptable ACK
+                    Sb = seqnum + 1 # adjust Sb
 
 if __name__ == '__main__':
     print("Server started")

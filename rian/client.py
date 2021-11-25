@@ -25,11 +25,11 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
     if seqnum == ISS+1 and acknum == IRS+1 and (flags & FLAG_ACK):
         # menerima data "sesungguhnya"
-        segment = recvSegment(s, 32780, True)
-        seqnum, acknum, flags, checksum, data = breakSegment(segment)
-        print("[Message from server:]")
-        print(data)
-        print("Entire segment (raw; components):")
-        printSegmentRaw(segment)
-        printSegment(segment)
+        while True:
+            segment = recvSegment(s, 32780, True)
+            seqnum, acknum, flags, checksum, data = breakSegment(segment)
+            print("Received segment no.", seqnum)
+            # mengirimkan ACK
+            dat = makeSegment(acknum, acknum+ISS-IRS, FLAG_ACK, "")
+            s.sendall(dat)
 
