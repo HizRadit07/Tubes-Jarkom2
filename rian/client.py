@@ -31,7 +31,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         f.write("")
         f.close()
         while True:
-            sleep(0.5)
+            sleep(0.05)
             segment = recvSegment(s, MAX_DATA_LEN+12, False)
             # printSegmentRaw(segment)
             if segment == None:
@@ -43,13 +43,16 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 if flags & FLAG_FIN:
                     print("Flag FIN present, closing connection...")
                     break
-                data = data.decode("utf-8")
-
-                f = open(SAVE_PATH, "a")
-                f.write(data)
-                f.close()
-
-
+                
+                if flags & FLAG_MDT: # metadata
+                    metadata = data
+                    print("Obtained metadata:", metadata)
+                else:
+                    data = data.decode("utf-8")
+                    f = open(SAVE_PATH, "a")
+                    f.write(data)
+                    f.close()
+                
                 # mengirimkan ACK
                 dat = makeSegment(acknum, acknum+ISS-IRS, FLAG_ACK, "")
                 s.sendall(dat)
