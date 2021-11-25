@@ -13,8 +13,9 @@ PORT = int(sys.argv[1])  # Port to listen on (non-privileged ports are > 1023)
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #gas = False
 #gas2 = False
-#Sb = 0
-#Sn = N+1
+Sb = 0
+Sn = N-1
+segments_needed = 0
 
 # TCP A                                                TCP B
 #  1.  CLOSED                                               LISTEN
@@ -45,7 +46,7 @@ def thread_con(conn,ev,ev2):
             print("M4 sent")
             
             # kirim data beneran
-            f = open("test_pg41506.txt", "r")
+            f = open("test_pg51461.txt", "r")
             length = f.seek(2)
             f.seek(0)
             segments_needed = (length-1) // 32768 + 1
@@ -55,18 +56,26 @@ def thread_con(conn,ev,ev2):
             segments_in_wnd = [makeSegment(ISS+1+i, IRS+1+i, FLAG_DAT, file_parts[i]) for i in range(N)]
             fp_base_idx = 0
             fp_last_sb = 0
+            print("---CHECKPOINT 1---")
+            print(Sb, segments_needed)
             ev2.set()
             
-            while (Sb < segments_needed):
+            print("---CHECKPOINT 2---")
+            while Sb-(ISS+1) < segments_needed:
+                print("---CHECKPOINT 3L1---")
                 Sbl = Sb         # Sb dan Sm untuk loop (antisipasi jika
                 Sml = Sbl + N-1  # paket datang di tengah-tengah loop)
-                if Sml >= segments_needed:
-                    Sml = segments_needed - 1  # di akhir file
+                print("Sbl", Sbl, "Sml", Sml, "fp_base_idx", fp_base_idx)
+                if Sml >= segments_needed + (ISS+1):
+                    Sml = segments_needed + (ISS+1) - 1  # di akhir file
+                print("Sbl", Sbl, "Sml", Sml, "fp_base_idx", fp_base_idx)
                 fp_base_idx_old = fp_base_idx
                 fp_base_idx = Sbl % N
                 
+                print("---CHECKPOINT 3L2---")
                 # update file_parts dan segments_in_wnd jika perlu
                 while fp_base_idx_old != fp_base_idx:
+                    print("---CHECKPOINT 3L3L---")
                     fp_last_sb += 1
                     file_parts[fp_base_idx_old] = f.read(32768)
                     segments_in_wnd[fp_base_idx_old] = makeSegment(fp_last_sb, IRS-ISS+fp_last_sb, FLAG_DAT, file_parts[fp_base_idx_old])
@@ -74,14 +83,18 @@ def thread_con(conn,ev,ev2):
                     if (fp_base_idx_old == N):
                         fp_base_idx_old = 0
                 
+                print("---CHECKPOINT 3L4---")
+                print("Sbl", Sbl, "Sml", Sml, "fp_base_idx", fp_base_idx)
                 # kirim segmen
                 for i in range(Sbl, Sml+1):
+                    print("---CHECKPOINT 3L5L---")
                     idx_siw = i - Sbl + fp_base_idx
-                    if idx_siw >= N
+                    if idx_siw >= N:
                         idx_siw -= N
                     conn.sendall(segments_in_wnd[idx_siw])
                     print("Sent segment no.", i)
             
+            print("---CHECKPOINT 4---")
             #file_data = f.read()
             #dat = makeSegment(ISS+1, IRS+1, FLAG_ACK, file_data)
             #conn.sendall(dat)
@@ -89,9 +102,16 @@ def thread_con(conn,ev,ev2):
     conn.close()
 
 def ack_receive(conn,ev):
+    global Sb
+    global Sm
+    global segments_needed
+    print("---CHECKPOINT ZZ---")
     gas2 = ev2.wait()
     if gas2:
-        while Sb < segments_needed:
+        print("---CHECKPOINT A---")
+        print(Sb-(ISS+1), segments_needed)
+        while Sb-(ISS+1) < segments_needed:
+            print("---CHECKPOINT BL---")
             segment = recvSegment(conn, 12, True)
             seqnum, acknum, flags, checksum, data = breakSegment(segment)
             print("Received segment: ", end='')

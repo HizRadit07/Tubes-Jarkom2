@@ -6,9 +6,9 @@ from struct import unpack
 def joinBytes(bytesList):
     bytesArray = bytearray(''.encode("utf-8"))
     for bytes in bytesList:
-        print(bytes)
+        #print(bytes)
         bytesArray.extend(bytes)
-    print(bytesArray)
+    #print(bytesArray)
     return bytesArray
 
 def recvSegment(conn, nbytes, verbose):

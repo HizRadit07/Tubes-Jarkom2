@@ -22,14 +22,19 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     
     # 3wh: established-established
     segment = recvSegment(s, 12, True)
+    print("---CHECKPOINT 1---")
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
+    print("---CHECKPOINT 2---")
     if seqnum == ISS+1 and acknum == IRS+1 and (flags & FLAG_ACK):
         # menerima data "sesungguhnya"
+        print("---CHECKPOINT 3---")
         while True:
+            print("---CHECKPOINT 4L---")
             segment = recvSegment(s, 32780, True)
             seqnum, acknum, flags, checksum, data = breakSegment(segment)
             print("Received segment no.", seqnum)
             # mengirimkan ACK
             dat = makeSegment(acknum, acknum+ISS-IRS, FLAG_ACK, "")
             s.sendall(dat)
+            print("Segment no.",seqnum,"ACK'd")
 
