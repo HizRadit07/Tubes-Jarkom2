@@ -13,9 +13,9 @@ PORT = int(sys.argv[1])  # Port to listen on (non-privileged ports are > 1023)
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #gas = False
 #gas2 = False
-Sb = 0
-Sn = N-1
-segments_needed = 0
+Sb = None
+Sm = None
+segments_needed = None
 
 # TCP A                                                TCP B
 #  1.  CLOSED                                               LISTEN
@@ -26,7 +26,7 @@ segments_needed = 0
 #          Basic 3-Way Handshake for Connection Synchronization
 
 
-def thread_con(conn,ev,ev2):
+def thread_con(conn,cid,ev,ev2):
     global Sb
     global Sm
     global segments_needed
@@ -46,23 +46,23 @@ def thread_con(conn,ev,ev2):
             print("TWH - M4 sent, seqnum", ISS+1)
             
             # kirim data beneran
-            f = open("test_pg51461.txt", "r")
+            f = open("test_short.txt", "r")
             length = f.seek(0,2)
             f.seek(0)
-            segments_needed = (length-1) // MAX_DATA_LEN + 1
+            segments_needed[cid] = (length-1) // MAX_DATA_LEN + 1
             print("length =", length, "segments_needed =", segments_needed)
-            Sb = ISS+1
-            Sn = ISS+N
+            Sb[cid] = ISS+1
+            Sm[cid] = ISS+N
             file_parts = [f.read(MAX_DATA_LEN) for i in range(N)]
             segments_in_wnd = [makeSegment(ISS+1+i, IRS+1+i, FLAG_DAT, file_parts[i]) for i in range(N)]
             fp_base_idx = 0
             Sb_old = ISS+1
-            last_seqnum = segments_needed + ISS
+            last_seqnum = segments_needed[cid] + ISS
             
             ev2.set()
             
-            while Sb <= last_seqnum: # == Loop pengiriman data ==
-                Sbl = Sb         # Sb dan Sm untuk loop (antisipasi jika
+            while Sb[cid] <= last_seqnum: # == Loop pengiriman data ==
+                Sbl = Sb[cid]         # Sb dan Sm untuk loop (antisipasi jika
                 Sml = Sbl + N-1  # paket datang di tengah-tengah loop)
                 if Sml > last_seqnum:
                     Sml = last_seqnum  # di akhir file
@@ -70,7 +70,7 @@ def thread_con(conn,ev,ev2):
                 fp_base_idx = (Sbl-(ISS+1)) % N
                 
                 # update file_parts dan segments_in_wnd jika perlu
-                while fp_base_idx_old != fp_base_idx or Sb_old != Sb:
+                while fp_base_idx_old != fp_base_idx or Sb_old != Sb[cid]:
                     Sb_old += 1
                     file_parts[fp_base_idx_old] = f.read(MAX_DATA_LEN)
                     segments_in_wnd[fp_base_idx_old] = makeSegment(Sb_old+N-1, Sb_old+N-1+IRS-ISS, FLAG_DAT, file_parts[fp_base_idx_old])
@@ -111,13 +111,13 @@ def thread_con(conn,ev,ev2):
             print("3-way handshake failed!")
     conn.close()
 
-def ack_receive(conn,ev):
+def ack_receive(conn,cid,ev):
     global Sb
     global Sm
     global segments_needed
     gas2 = ev2.wait()
     if gas2:
-        while Sb-(ISS+1) < segments_needed:
+        while Sb[cid]-(ISS+1) < segments_needed[cid]:
             sleep(0.5)
             segment = recvSegment(conn, 12, False)
             if segment == None:
@@ -127,8 +127,8 @@ def ack_receive(conn,ev):
             print("Received segment: ", end='')
             printSegment(segment)
             if flags & FLAG_ACK:
-                if seqnum >= Sb: # acceptable ACK
-                    Sb = seqnum + 1 # adjust Sb
+                if seqnum >= Sb[cid]: # acceptable ACK
+                    Sb[cid] = seqnum + 1 # adjust Sb
 
 if __name__ == '__main__':
     print("Server started")
@@ -137,16 +137,21 @@ if __name__ == '__main__':
     ev2 = Event()
     yes = True
     s.listen()
+    no_of_clients = 0
     while yes:
         conn, addr = s.accept()
         print('Connected by', addr)
-        thread = Thread(target = thread_con, args = (conn, ev, ev2))
-        thread2 = Thread(target = ack_receive, args = (conn, ev2))
+        thread = Thread(target = thread_con, args = (conn, no_of_clients, ev, ev2))
+        thread2 = Thread(target = ack_receive, args = (conn, no_of_clients, ev2))
+        no_of_clients += 1
         thread.start()
         thread2.start()
-        #a = input("gas lg? (y/n)")
-        a = 'n'
+        a = input("gas lg? (y/n)")
+        #a = 'n'
         if a == 'n':
+            Sb = [0 for i in range(no_of_clients)]
+            Sm = [0 for i in range(no_of_clients)]
+            segments_needed = [0 for i in range(no_of_clients)]
             yes = False
             ev.set()
             print("Transfer time")
