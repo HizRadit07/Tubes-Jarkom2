@@ -15,19 +15,19 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     # 3wh: established -- syn-received
     segment = recvSegment(s, 12, True)
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
-    if seqnum == 100 and (flags & FLAG_SYN):
-        dat = makeSegment(300, 101, FLAG_SYN | FLAG_ACK, "")
+    if seqnum == ISS and (flags & FLAG_SYN):
+        dat = makeSegment(IRS, ISS+1, FLAG_SYN | FLAG_ACK, "")
         s.sendall(dat)
         print("M3 sent")
     
     # 3wh: established-established
     segment = recvSegment(s, 12, True)
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
-    if seqnum == 101 and acknum == 301 and (flags & FLAG_ACK):
+    if seqnum == ISS+1 and acknum == IRS+1 and (flags & FLAG_ACK):
         # menerima data "sesungguhnya"
         segment = recvSegment(s, 32780, True)
         seqnum, acknum, flags, checksum, data = breakSegment(segment)
-        print("Message from server:")
+        print("[Message from server:]")
         print(data)
         print("Entire segment (raw; components):")
         printSegmentRaw(segment)

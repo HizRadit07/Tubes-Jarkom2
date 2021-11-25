@@ -70,20 +70,14 @@ def calcChecksum(bytesArray):
     checksum = 0;
     for i in range(hlength):
         # one's complement addition
-        checksum += unpack(">h", bytesArray[2*i:2*i+2])[0]
-        if checksum < 0:
-            checksum += 0x10000
+        checksum += (bytesArray[2*i] << 8) + bytesArray[2*i+1]
         if checksum > 0xffff:
             checksum -= 0xffff
-            checksum += 1
         #print("checksum calc:", hex(checksum))
     if odd:
         checksum += bytesArray[2*hlength] << 8
-        if checksum < 0:
-            checksum += 0x10000
         if checksum > 0xffff:
             checksum -= 0xffff
-            checksum += 1
     #print("checksum calc final:", hex(checksum))
     checksum = checksum & 0xffff
     if checksum == 0xffff:
