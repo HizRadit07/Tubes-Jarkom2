@@ -49,7 +49,7 @@ def makeSegment(seqnum, acknum, flags, data):
     bytesArray = joinBytes([a,b,c,b'\x00',d,e])
     checksum = (~calcChecksum(bytesArray)) & 0xffff
     d = checksum.to_bytes(2, 'big')
-    print("a", a, "b", b, "c", c, "d", d, "e", e)
+    #print("a", a, "b", b, "c", c, "d", d, "e", e)
     return joinBytes([a,b,c,b'\x00',d,e])
 
 # break a segment into individual components (in int form except for data)
