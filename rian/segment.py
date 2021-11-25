@@ -19,8 +19,8 @@ def recvSegment(conn, nbytes, verbose):
         return None
     if calcChecksum(segment) != 0:
         print("Checksum error!", calcChecksum(segment))
-    elif verbose:
-        print("Checksum correct")
+    # elif verbose:
+        # print("Checksum correct")
     
     if verbose:
         print("Received segment: ", end='')

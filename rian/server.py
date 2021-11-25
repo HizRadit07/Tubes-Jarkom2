@@ -8,7 +8,7 @@ from segment import *
 HOST = '127.0.0.1'  # Standard loopback interface address (localhost)
 #PORT = 65432        # Port to listen on (non-privileged ports are > 1023)
 PORT = int(sys.argv[1])  # Port to listen on (non-privileged ports are > 1023)
-#SAVE_PATH = sys.argv[2]
+SAVE_PATH = sys.argv[2]
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #gas = False
@@ -35,7 +35,7 @@ def thread_con(conn,cid,ev,ev2):
         # 3wh: syn-sent -- syn-received
         dat = makeSegment(ISS, 0, FLAG_SYN, "")
         conn.sendall(dat)
-        print("TWH - M2 sent")
+        print("Client "+str(cid+1) +": TWH - M2 sent")
         
         # 3wh: established -- established
         segment = recvSegment(conn, 12, True)
@@ -43,14 +43,14 @@ def thread_con(conn,cid,ev,ev2):
         if seqnum == IRS and acknum == ISS+1 and (flags & FLAG_SYN) and (flags & FLAG_ACK):
             dat = makeSegment(ISS+1, IRS+1, FLAG_ACK, "")
             conn.sendall(dat)
-            print("TWH - M4 sent, seqnum", ISS+1)
+            print("Client "+str(cid+1) +": TWH - M4 sent, seqnum", ISS+1)
             
             # kirim data beneran
-            f = open("test_short.txt", "r")
+            f = open(SAVE_PATH, "r")
             length = f.seek(0,2)
             f.seek(0)
             segments_needed[cid] = (length-1) // MAX_DATA_LEN + 1
-            print("length =", length, "segments_needed =", segments_needed)
+            # print("length =", length, "segments_needed =", segments_needed)
             Sb[cid] = ISS+1
             Sm[cid] = ISS+N
             file_parts = [f.read(MAX_DATA_LEN) for i in range(N)]
@@ -84,31 +84,31 @@ def thread_con(conn,cid,ev,ev2):
                     if idx_siw >= N:
                         idx_siw -= N
                     conn.sendall(segments_in_wnd[idx_siw])
-                    print("Sent segment no.", i)
-                    printSegment(segments_in_wnd[idx_siw])
+                    print("Client "+str(cid+1) +": Sent segment no.", i)
+                    # printSegment(segments_in_wnd[idx_siw])
                     sleep(0.6)
                 sleep(0.5)
             # Akhir loop pengiriman data
-            print("Data sent")
+            print("Client "+str(cid+1) +": Data sent")
             # tear down connection
-            print("Tearing down connection")
+            print("Client "+str(cid+1) +": Tearing down connection")
             segment = makeSegment(last_seqnum+1, last_seqnum+1+IRS-ISS, FLAG_FIN | FLAG_ACK, "")
             conn.sendall(segment)
-            print("Segment no.", last_seqnum+1, "(FIN) sent")
+            print("Client "+str(cid+1) +": Segment no.", last_seqnum+1, "(FIN) sent")
             segment = recvSegment(conn, 12, False)
             seqnum, acknum, flags, checksum, data = breakSegment(segment)
             if seqnum == last_seqnum + 1 and flags & FLAG_ACK:
-                print("Client ACK'd segment no.", last_seqnum+1)
+                print("Client "+str(cid+1) +": Client ACK'd segment no.", last_seqnum+1)
                 # wait for last ack
                 segment = recvSegment(conn, 12, False)
                 seqnum, acknum, flags, checksum, data = breakSegment(segment)
                 if seqnum == last_seqnum + 1 and flags & FLAG_FIN and flags & FLAG_ACK:
-                    print("Received LAST-ACK from client, segment no.", last_seqnum+1)
+                    print("Client "+str(cid+1) +": Received LAST-ACK from client, segment no.", last_seqnum+1)
                     segment = makeSegment(last_seqnum+2, last_seqnum+2+IRS-ISS, FLAG_ACK, "")
                     conn.sendall(segment)
-                    print("ACK'd LAST-ACK from client, closing connection.")
+                    print("Client "+str(cid+1) +": ACK'd LAST-ACK from client, closing connection.")
         else:
-            print("3-way handshake failed!")
+            print("Client "+str(cid+1) +": 3-way handshake failed!")
     conn.close()
 
 def ack_receive(conn,cid,ev):
@@ -122,10 +122,10 @@ def ack_receive(conn,cid,ev):
             segment = recvSegment(conn, 12, False)
             if segment == None:
                 continue
-            printSegmentRaw(segment)
+            # printSegmentRaw(segment)
             seqnum, acknum, flags, checksum, data = breakSegment(segment)
-            print("Received segment: ", end='')
-            printSegment(segment)
+            # print("Received segment: ", end='')
+            # printSegment(segment)
             if flags & FLAG_ACK:
                 if seqnum >= Sb[cid]: # acceptable ACK
                     Sb[cid] = seqnum + 1 # adjust Sb

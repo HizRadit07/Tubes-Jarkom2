@@ -7,7 +7,7 @@ from segment import *
 HOST = '127.0.0.1'  # The server's hostname or IP address
 #PORT = 65432        # The port used by the server
 PORT = int(sys.argv[1])  # The port used by the server
-#SAVE_PATH = sys.argv[2]
+SAVE_PATH = sys.argv[2]
 #ipt = sys.argv[1]
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -27,10 +27,13 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     if seqnum == ISS+1 and acknum == IRS+1 and (flags & FLAG_ACK):
         # menerima data "sesungguhnya"
         expected_seqnum = ISS+1
+        f = open(SAVE_PATH, "w")
+        f.write("")
+        f.close()
         while True:
             sleep(0.5)
             segment = recvSegment(s, MAX_DATA_LEN+12, False)
-            printSegmentRaw(segment)
+            # printSegmentRaw(segment)
             if segment == None:
                 continue
             seqnum, acknum, flags, checksum, data = breakSegment(segment)
@@ -40,6 +43,13 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 if flags & FLAG_FIN:
                     print("Flag FIN present, closing connection...")
                     break
+                data = data.decode("utf-8")
+
+                f = open(SAVE_PATH, "a")
+                f.write(data)
+                f.close()
+
+
                 # mengirimkan ACK
                 dat = makeSegment(acknum, acknum+ISS-IRS, FLAG_ACK, "")
                 s.sendall(dat)
@@ -58,6 +68,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         expected_seqnum += 1
         segment = recvSegment(s, 12, True)
         seqnum, acknum, flags, checksum, data = breakSegment(segment)
+        print(data)
+        
         if seqnum == expected_seqnum and flags & FLAG_ACK:
             print("Closing connection")
             s.close()
