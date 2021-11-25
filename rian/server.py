@@ -45,7 +45,7 @@ def thread_con(conn,cid,ev,ev2):
             
             # -- kirim data beneran --
             # menentukan panjang file dan segments_needed
-            f = open(SAVE_PATH, "r")
+            f = open(SAVE_PATH, "rb")
             length = f.seek(0,2)
             f.seek(0)
             segments_needed[cid] = (length-1) // MAX_DATA_LEN + 1
@@ -61,6 +61,7 @@ def thread_con(conn,cid,ev,ev2):
             metadata = SAVE_PATH
             while len(metadata) < METADATA_LEN:
                 metadata += " "
+            metadata = metadata.encode()
             temps = makeSegment(ISS+2-1, IRS+2-1, FLAG_DAT, metadata)
             conn.sendall(temps)
             print("Client "+str(cid+1) +": Sent segment no.", ISS+2-1, "(metadata)")
@@ -92,6 +93,7 @@ def thread_con(conn,cid,ev,ev2):
                 sleep(0.05)
             # == Akhir loop pengiriman data ==
             print("Client "+str(cid+1) +": Data successfully sent")
+            f.close()
             
             # --- Tear down connection ---
             print("Client "+str(cid+1) +": Tearing down connection")

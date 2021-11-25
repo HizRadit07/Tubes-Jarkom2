@@ -67,7 +67,6 @@ def convertToBytes(seqnum,acknum,flags,checksum,data):
     acknum = acknum.to_bytes(4, 'big')
     flags = flags.to_bytes(1, 'big')
     checksum = checksum.to_bytes(2, 'big')
-    data = data.encode()
     return seqnum,acknum,flags,checksum,data
 
 def calcChecksum(bytesArray):

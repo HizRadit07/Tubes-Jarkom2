@@ -26,8 +26,8 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
     if seqnum == ISS+1 and acknum == IRS+1 and (flags & FLAG_ACK):
         # menerima data "sesungguhnya"
-        f = open(SAVE_PATH, "w")
-        f.write("")
+        f = open(SAVE_PATH, "wb")
+        f.write("".encode())
         f.close()
         expected_seqnum = ISS+1
         
@@ -84,8 +84,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 print("Flag FIN present, closing connection...")
                 break
             
-            data = data.decode("utf-8")
-            f = open(SAVE_PATH, "a")
+            f = open(SAVE_PATH, "ab")
             f.write(data)
             f.close()
             
