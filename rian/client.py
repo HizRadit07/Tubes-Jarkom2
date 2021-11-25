@@ -26,42 +26,76 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
     if seqnum == ISS+1 and acknum == IRS+1 and (flags & FLAG_ACK):
         # menerima data "sesungguhnya"
-        expected_seqnum = ISS+1
         f = open(SAVE_PATH, "w")
         f.write("")
         f.close()
-        #segment = recvSegment(s, 76, True)
-        #seqnum, acknum, flags, checksum, data = breakSegment(segment)
-        #print("Received segment no. ", seqnum, " (expected ", expected_seqnum, ")", sep='')
-        #metadata = data
-        #print("Obtained metadata:", metadata)
-        #expected_seqnum += 1
-        while True:
+        expected_seqnum = ISS+1
+        
+        segment = recvSegment(s, METADATA_LEN+12, False)
+        seqnum, acknum, flags, checksum, data = breakSegment(segment)
+        print("Received segment no. ", seqnum, " (expected ", expected_seqnum, ")", sep='')
+        print("Obtained metadata:", data)
+        
+        dat = makeSegment(acknum, acknum+ISS-IRS, FLAG_ACK, "")
+        s.sendall(dat)
+        print("ACK'd segment no.",seqnum)
+        expected_seqnum += 1
+        
+        while True: # == Loop utama pembacaan data ==
             sleep(0.05)
+            #header = recvSegment(s, 12, True)
+            #if segment == None:
+            #    continue
+            #seqnum, acknum, flags, checksum, data = breakSegment(header)
+            #print("Received segment no. ", seqnum, " (expected ", expected_seqnum, ")", sep='')
+            #if seqnum != expected_seqnum:
+            #    print("Not the expected seqnum, discarding segment")
+            #    continue
+            #
+            ## jika segment valid (dan merupakan segment yang expected)
+            #if flags & FLAG_FIN:
+            #    print("Flag FIN present, closing connection...")
+            #    break
+            #if flags & FLAG_MDT:
+            #    metadata = recvSegment(s, METADATA_LEN, True)
+            #    print("Received metadata:", metadata)
+            #else: # data saja
+            #    data = recvSegment(s, MAX_DATA_LEN, False)
+            #    data = data.decode("utf-8")
+            #    f = open(SAVE_PATH, "a")
+            #    f.write(data)
+            #    f.close()
+            ## mengirimkan ACK
+            #dat = makeSegment(acknum, acknum+ISS-IRS, FLAG_ACK, "")
+            #s.sendall(dat)
+            #print("ACK'd segment no.",seqnum)
+            #expected_seqnum += 1
+            
             segment = recvSegment(s, MAX_DATA_LEN+12, False)
-            # printSegmentRaw(segment)
             if segment == None:
                 continue
             seqnum, acknum, flags, checksum, data = breakSegment(segment)
             print("Received segment no. ", seqnum, " (expected ", expected_seqnum, ")", sep='')
-            if seqnum == expected_seqnum:
-                # jika ada flag FIN
-                if flags & FLAG_FIN:
-                    print("Flag FIN present, closing connection...")
-                    break
-                
-                data = data.decode("utf-8")
-                f = open(SAVE_PATH, "a")
-                f.write(data)
-                f.close()
-                
-                # mengirimkan ACK
-                dat = makeSegment(acknum, acknum+ISS-IRS, FLAG_ACK, "")
-                s.sendall(dat)
-                print("ACK'd segment no.",seqnum)
-                expected_seqnum += 1
-            else:
+            if seqnum != expected_seqnum:
                 print("Not the expected seqnum, discarding segment")
+                continue
+            # jika ada flag FIN
+            if flags & FLAG_FIN:
+                print("Flag FIN present, closing connection...")
+                break
+            
+            data = data.decode("utf-8")
+            f = open(SAVE_PATH, "a")
+            f.write(data)
+            f.close()
+            
+            # mengirimkan ACK
+            dat = makeSegment(acknum, acknum+ISS-IRS, FLAG_ACK, "")
+            s.sendall(dat)
+            print("ACK'd segment no.",seqnum)
+            expected_seqnum += 1
+        # == Akhir loop pembacaan data ==
+        
         # tearing down connection
         dat = makeSegment(acknum, acknum+ISS-IRS, FLAG_ACK, "")
         s.sendall(dat)

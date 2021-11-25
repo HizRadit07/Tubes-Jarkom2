@@ -13,8 +13,7 @@ SAVE_PATH = sys.argv[2]
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #gas = False
 #gas2 = False
-Sb = None
-Sm = None
+Sba = None
 segments_needed = None
 
 # TCP A                                                TCP B
@@ -27,8 +26,7 @@ segments_needed = None
 
 
 def thread_con(conn,cid,ev,ev2):
-    global Sb
-    global Sm
+    global Sba
     global segments_needed
     gas = ev.wait()
     if gas:
@@ -45,52 +43,57 @@ def thread_con(conn,cid,ev,ev2):
             conn.sendall(dat)
             print("Client "+str(cid+1) +": TWH - M4 sent, seqnum", ISS+1)
             
-            # kirim data beneran
+            # -- kirim data beneran --
+            # menentukan panjang file dan segments_needed
             f = open(SAVE_PATH, "r")
             length = f.seek(0,2)
             f.seek(0)
             segments_needed[cid] = (length-1) // MAX_DATA_LEN + 1
-            # print("length =", length, "segments_needed =", segments_needed)
-            Sb[cid] = ISS+1
-            Sm[cid] = ISS+N
-            file_parts = [f.read(MAX_DATA_LEN) for i in range(N)]
-            segments_in_wnd = [makeSegment(ISS+1+i, IRS+1+i, FLAG_DAT, file_parts[i]) for i in range(N)]
-            fp_base_idx = 0
-            Sb_old = ISS+1
-            last_seqnum = segments_needed[cid] + ISS
             
+            # inisialisasi variabel
+            Sba[cid] = ISS+2
+            Sb_old = ISS+2
+            file_parts = [f.read(MAX_DATA_LEN) for i in range(N)]
+            segments_in_wnd = [makeSegment(ISS+2+i, IRS+2+i, FLAG_DAT, file_parts[i]) for i in range(N)]
+            siw_base_idx = 0
+            last_seqnum = segments_needed[cid] + ISS + 1
+            
+            metadata = SAVE_PATH
+            while len(metadata) < METADATA_LEN:
+                metadata += " "
+            temps = makeSegment(ISS+2-1, IRS+2-1, FLAG_DAT, metadata)
+            conn.sendall(temps)
+            print("Client "+str(cid+1) +": Sent segment no.", ISS+2-1, "(metadata)")
+            
+            # jalankan thread ack_receive
             ev2.set()
             
-            while Sb[cid] <= last_seqnum: # == Loop pengiriman data ==
-                Sbl = Sb[cid]         # Sb dan Sm untuk loop (antisipasi jika
-                Sml = Sbl + N-1  # paket datang di tengah-tengah loop)
-                if Sml > last_seqnum:
-                    Sml = last_seqnum  # di akhir file
-                fp_base_idx_old = fp_base_idx
-                fp_base_idx = (Sbl-(ISS+1)) % N
+            print("--Entering loop--")
+            while Sba[cid] <= last_seqnum: # == Loop pengiriman data ==
+                Sb = Sba[cid]
+                Sm = Sb + N-1
+                if Sm > last_seqnum:
+                    Sm = last_seqnum  # di akhir file
+                siw_base_idx_old = siw_base_idx
+                siw_base_idx = (Sb-(ISS+2)) % N
+                print("Sb", Sb, "Sm", Sm)
                 
-                # update file_parts dan segments_in_wnd jika perlu
-                while fp_base_idx_old != fp_base_idx or Sb_old != Sb[cid]:
+                # update segments_in_wnd jika perlu
+                while siw_base_idx_old != siw_base_idx or Sb_old != Sba[cid]:
                     Sb_old += 1
-                    file_parts[fp_base_idx_old] = f.read(MAX_DATA_LEN)
-                    segments_in_wnd[fp_base_idx_old] = makeSegment(Sb_old+N-1, Sb_old+N-1+IRS-ISS, FLAG_DAT, file_parts[fp_base_idx_old])
-                    fp_base_idx_old += 1
-                    if (fp_base_idx_old == N):
-                        fp_base_idx_old = 0
+                    segments_in_wnd[siw_base_idx_old] = makeSegment(Sb_old+N-1, Sb_old+N-1+IRS-ISS, FLAG_DAT, f.read(MAX_DATA_LEN))
+                    siw_base_idx_old = (siw_base_idx_old + 1) % N
                 
                 # kirim segmen
-                for i in range(Sbl, Sml+1):
-                    idx_siw = i - Sbl + fp_base_idx
-                    if idx_siw >= N:
-                        idx_siw -= N
-                    conn.sendall(segments_in_wnd[idx_siw])
+                for i in range(Sb, Sm+1):
+                    conn.sendall(segments_in_wnd[(i - Sb + siw_base_idx) % N])
                     print("Client "+str(cid+1) +": Sent segment no.", i)
-                    # printSegment(segments_in_wnd[idx_siw])
                     sleep(0.06)
                 sleep(0.05)
-            # Akhir loop pengiriman data
-            print("Client "+str(cid+1) +": Data sent")
-            # tear down connection
+            # == Akhir loop pengiriman data ==
+            print("Client "+str(cid+1) +": Data successfully sent")
+            
+            # --- Tear down connection ---
             print("Client "+str(cid+1) +": Tearing down connection")
             segment = makeSegment(last_seqnum+1, last_seqnum+1+IRS-ISS, FLAG_FIN | FLAG_ACK, "")
             conn.sendall(segment)
@@ -112,12 +115,11 @@ def thread_con(conn,cid,ev,ev2):
     conn.close()
 
 def ack_receive(conn,cid,ev):
-    global Sb
-    global Sm
+    global Sba
     global segments_needed
     gas2 = ev2.wait()
     if gas2:
-        while Sb[cid]-(ISS+1) < segments_needed[cid]:
+        while Sba[cid] <= segments_needed[cid]+(ISS+1):
             sleep(0.05)
             segment = recvSegment(conn, 12, False)
             if segment == None:
@@ -128,8 +130,8 @@ def ack_receive(conn,cid,ev):
             # printSegment(segment)
             print("Client "+str(cid+1) +": Client ACK'd segment no.", seqnum+ISS-IRS)
             if flags & FLAG_ACK:
-                if seqnum >= Sb[cid]: # acceptable ACK
-                    Sb[cid] = seqnum + 1 # adjust Sb
+                if seqnum >= Sba[cid]: # acceptable ACK
+                    Sba[cid] = seqnum + 1 # adjust Sb
 
 if __name__ == '__main__':
     print("Server started")
@@ -147,11 +149,10 @@ if __name__ == '__main__':
         no_of_clients += 1
         thread.start()
         thread2.start()
-        a = input("gas lg? (y/n)")
-        #a = 'n'
+        #a = input("gas lg? (y/n)")
+        a = 'n'
         if a == 'n':
-            Sb = [0 for i in range(no_of_clients)]
-            Sm = [0 for i in range(no_of_clients)]
+            Sba = [0 for i in range(no_of_clients)]
             segments_needed = [0 for i in range(no_of_clients)]
             yes = False
             ev.set()
