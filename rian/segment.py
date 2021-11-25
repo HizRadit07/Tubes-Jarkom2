@@ -8,11 +8,15 @@ def joinBytes(bytesList):
     for bytes in bytesList:
         #print(bytes)
         bytesArray.extend(bytes)
-    #print(bytesArray)
+        #print(bytesArray)
     return bytesArray
 
 def recvSegment(conn, nbytes, verbose):
     segment = conn.recv(nbytes)
+    if len(segment) == 0:
+        if verbose:
+            print("Empty segment")
+        return None
     if calcChecksum(segment) != 0:
         print("Checksum error!", calcChecksum(segment))
     elif verbose:
@@ -27,12 +31,12 @@ def recvSegment(conn, nbytes, verbose):
 def printSegmentRaw(segment):
     print("Printing raw segment")
     print(segment)
-    print("Segment components:")
-    print(segment[:4])
-    print(segment[4:8])
-    print(segment[8])
-    print(segment[10:12])
-    print(segment[12:])
+    #print("Segment components:")
+    #print(segment[:4])
+    #print(segment[4:8])
+    #print(segment[8])
+    #print(segment[10:12])
+    #print(segment[12:])
     return
 
 def printSegment(segment):
@@ -45,6 +49,7 @@ def makeSegment(seqnum, acknum, flags, data):
     bytesArray = joinBytes([a,b,c,b'\x00',d,e])
     checksum = (~calcChecksum(bytesArray)) & 0xffff
     d = checksum.to_bytes(2, 'big')
+    print("a", a, "b", b, "c", c, "d", d, "e", e)
     return joinBytes([a,b,c,b'\x00',d,e])
 
 # break a segment into individual components (in int form except for data)
