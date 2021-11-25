@@ -54,15 +54,12 @@ def thread_con(conn,cid,ev,ev2):
             Sb[cid] = ISS+1
             Sm[cid] = ISS+N
             file_parts = [f.read(MAX_DATA_LEN) for i in range(N)]
-            segments_in_wnd = [makeSegment(ISS+2+i, IRS+2+i, FLAG_DAT, file_parts[i]) for i in range(N)]
+            segments_in_wnd = [makeSegment(ISS+1+i, IRS+1+i, FLAG_DAT, file_parts[i]) for i in range(N)]
             fp_base_idx = 0
             Sb_old = ISS+1
             last_seqnum = segments_needed[cid] + ISS
             
             ev2.set()
-            sg_metadata = makeSegment(ISS+1, IRS+1, FLAG_MDT, SAVE_PATH)
-            conn.sendall(sg_metadata)
-            print("Sent metadata segment, sequence number", ISS+1)
             
             while Sb[cid] <= last_seqnum: # == Loop pengiriman data ==
                 Sbl = Sb[cid]         # Sb dan Sm untuk loop (antisipasi jika
@@ -76,7 +73,7 @@ def thread_con(conn,cid,ev,ev2):
                 while fp_base_idx_old != fp_base_idx or Sb_old != Sb[cid]:
                     Sb_old += 1
                     file_parts[fp_base_idx_old] = f.read(MAX_DATA_LEN)
-                    segments_in_wnd[fp_base_idx_old] = makeSegment(Sb_old+N, Sb_old+N+IRS-ISS, FLAG_DAT, file_parts[fp_base_idx_old])
+                    segments_in_wnd[fp_base_idx_old] = makeSegment(Sb_old+N-1, Sb_old+N-1+IRS-ISS, FLAG_DAT, file_parts[fp_base_idx_old])
                     fp_base_idx_old += 1
                     if (fp_base_idx_old == N):
                         fp_base_idx_old = 0
@@ -87,7 +84,7 @@ def thread_con(conn,cid,ev,ev2):
                     if idx_siw >= N:
                         idx_siw -= N
                     conn.sendall(segments_in_wnd[idx_siw])
-                    print("Client "+str(cid+1) +": Sent segment no.", i+1)
+                    print("Client "+str(cid+1) +": Sent segment no.", i)
                     # printSegment(segments_in_wnd[idx_siw])
                     sleep(0.06)
                 sleep(0.05)
