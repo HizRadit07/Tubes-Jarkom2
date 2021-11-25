@@ -28,6 +28,7 @@ segments_needed = None
 def thread_con(conn,cid,ev,ev2):
     global Sba
     global segments_needed
+    
     gas = ev.wait()
     if gas:
         # 3wh: syn-sent -- syn-received
@@ -116,9 +117,10 @@ def thread_con(conn,cid,ev,ev2):
             print("Client "+str(cid+1) +": 3-way handshake failed!")
     conn.close()
 
-def ack_receive(conn,cid,ev):
+def ack_receive(conn,cid,ev2):
     global Sba
     global segments_needed
+    
     gas2 = ev2.wait()
     if gas2:
         while Sba[cid] <= segments_needed[cid]+(ISS+1):
@@ -138,21 +140,27 @@ def ack_receive(conn,cid,ev):
 if __name__ == '__main__':
     print("Server started")
     s.bind((HOST, PORT))
-    ev = Event()
-    ev2 = Event()
-    yes = True
     s.listen()
+    ev = Event()
+    yes = True
     no_of_clients = 0
+    no_of_clients = 5
+    Sba = [0 for i in range(no_of_clients)]
+    segments_needed = [0 for i in range(no_of_clients)]
+    ev2 = [Event() for i in range(no_of_clients)]
+    cid = 0
     while yes:
         conn, addr = s.accept()
         print('Connected by', addr)
-        thread = Thread(target = thread_con, args = (conn, no_of_clients, ev, ev2))
-        thread2 = Thread(target = ack_receive, args = (conn, no_of_clients, ev2))
-        no_of_clients += 1
+        thread = Thread(target = thread_con, args = (conn, cid, ev, ev2[cid]))
+        thread2 = Thread(target = ack_receive, args = (conn, cid, ev2[cid]))
         thread.start()
         thread2.start()
+        ev.set()
+        cid += 1
         #a = input("gas lg? (y/n)")
-        a = 'n'
+        #a = 'n'
+        a = 'y'
         if a == 'n':
             Sba = [0 for i in range(no_of_clients)]
             segments_needed = [0 for i in range(no_of_clients)]
