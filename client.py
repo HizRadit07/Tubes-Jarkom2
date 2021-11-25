@@ -8,7 +8,11 @@ HOST = '127.0.0.1'  # The server's hostname or IP address
 #PORT = 65432        # The port used by the server
 PORT = int(sys.argv[1])  # The port used by the server
 SAVE_PATH = sys.argv[2]
-#ipt = sys.argv[1]
+metadata_req = False
+if len(sys.argv) >= 4:
+    if sys.argv[3] == "-M" or sys.argv[3] == "-m":
+        metadata_req = True
+        print("Metadata requested from server.")
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.connect((HOST, PORT))
@@ -17,24 +21,32 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     segment = recvSegment(s, 12, True)
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
     if seqnum == ISS and (flags & FLAG_SYN):
-        dat = makeSegment(IRS, ISS+1, FLAG_SYN | FLAG_ACK, "")
+        flag_send = FLAG_SYN | FLAG_ACK
+        if metadata_req:
+            flag_send |= FLAG_MDT
+        dat = makeSegment(IRS, ISS+1, flag_send, "")
         s.sendall(dat)
         print("3WH - M3 sent")
     
-    # 3wh: established-established
+    # 3wh: established -- established
     segment = recvSegment(s, 12, True)
     seqnum, acknum, flags, checksum, data = breakSegment(segment)
-    if seqnum == ISS+1 and acknum == IRS+1 and (flags & FLAG_ACK):
+    if seqnum == ISS+1 and (flags & FLAG_ACK):
         # menerima data "sesungguhnya"
         f = open(SAVE_PATH, "wb")
         f.write("".encode())
         f.close()
         expected_seqnum = ISS+1
         
-        segment = recvSegment(s, METADATA_LEN+12, False)
-        seqnum, acknum, flags, checksum, data = breakSegment(segment)
-        print("Received segment no. ", seqnum, " (expected ", expected_seqnum, ")", sep='')
-        print("Obtained metadata:", data)
+        if metadata_req:
+            segment = recvSegment(s, METADATA_LEN+12, False)
+            seqnum, acknum, flags, checksum, data = breakSegment(segment)
+            print("Received segment no. ", seqnum, " (expected ", expected_seqnum, ")", sep='')
+            print("Obtained metadata:", data)
+        else:
+            segment = recvSegment(s, 12, True)
+            seqnum, acknum, flags, checksum, data = breakSegment(segment)
+            print("Received segment no. ", seqnum, " (expected ", expected_seqnum, ")", sep='')
         
         dat = makeSegment(acknum, acknum+ISS-IRS, FLAG_ACK, "")
         s.sendall(dat)
@@ -43,34 +55,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         
         while True: # == Loop utama pembacaan data ==
             sleep(0.05)
-            #header = recvSegment(s, 12, True)
-            #if segment == None:
-            #    continue
-            #seqnum, acknum, flags, checksum, data = breakSegment(header)
-            #print("Received segment no. ", seqnum, " (expected ", expected_seqnum, ")", sep='')
-            #if seqnum != expected_seqnum:
-            #    print("Not the expected seqnum, discarding segment")
-            #    continue
-            #
-            ## jika segment valid (dan merupakan segment yang expected)
-            #if flags & FLAG_FIN:
-            #    print("Flag FIN present, closing connection...")
-            #    break
-            #if flags & FLAG_MDT:
-            #    metadata = recvSegment(s, METADATA_LEN, True)
-            #    print("Received metadata:", metadata)
-            #else: # data saja
-            #    data = recvSegment(s, MAX_DATA_LEN, False)
-            #    data = data.decode("utf-8")
-            #    f = open(SAVE_PATH, "a")
-            #    f.write(data)
-            #    f.close()
-            ## mengirimkan ACK
-            #dat = makeSegment(acknum, acknum+ISS-IRS, FLAG_ACK, "")
-            #s.sendall(dat)
-            #print("ACK'd segment no.",seqnum)
-            #expected_seqnum += 1
-            
             segment = recvSegment(s, MAX_DATA_LEN+12, False)
             if segment == None:
                 continue
